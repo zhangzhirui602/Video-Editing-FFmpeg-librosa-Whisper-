@@ -1,0 +1,46 @@
+"""歌词识别模块：使用 Whisper 识别音频歌词并生成 SRT 字幕文件。"""
+
+import os
+import subprocess
+
+
+def ensure_srt(audio_path: str, srt_path: str, whisper_model: str, language: str) -> str:
+    """
+    确保 SRT 字幕文件存在。如果不存在则调用 whisper 命令行识别生成。
+
+    参数:
+        audio_path: 音频文件路径
+        srt_path: 期望的 SRT 文件路径（与音频同名，后缀为 .srt）
+        whisper_model: Whisper 模型大小（tiny/base/small/medium/large）
+        language: 音频语言（如 Swedish、English、Chinese 等）
+
+    返回:
+        SRT 文件路径
+    """
+    if os.path.isfile(srt_path):
+        print(f"已找到字幕文件：{srt_path}")
+        return srt_path
+
+    # 确保输出目录存在
+    output_dir = os.path.dirname(srt_path)
+    os.makedirs(output_dir, exist_ok=True)
+
+    print(f"未找到字幕文件，正在使用 Whisper ({whisper_model}) 识别歌词...")
+    subprocess.run(
+        [
+            "whisper", audio_path,
+            "--model", whisper_model,
+            "--language", language,
+            "--output_dir", output_dir,
+            "--output_format", "srt",
+        ],
+        check=True,
+    )
+
+    # whisper 命令行输出文件名与音频同名
+    if not os.path.isfile(srt_path):
+        print(f"[错误] Whisper 识别完成但未找到预期的字幕文件：{srt_path}")
+        raise FileNotFoundError(srt_path)
+
+    print(f"歌词识别完成，已保存到：{srt_path}")
+    return srt_path

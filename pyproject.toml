@@ -1,0 +1,10 @@
+[project]
+name = "beat-video-editor"
+version = "0.1.0"
+description = "按音乐节拍自动切换视频片段并烧录字幕"
+requires-python = ">=3.10"
+dependencies = [
+    "librosa",
+    "openai-whisper",
+    "python-dotenv",
+]
