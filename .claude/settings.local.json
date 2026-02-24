@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create vite@latest . -- --template react-ts)",
+      "Bash(npm install)",
+      "Bash(npm install tailwindcss @tailwindcss/vite @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities framer-motion lucide-react)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npx vite build)",
+      "Bash(uv sync)",
+      "Bash(.venv/Scripts/python -c \"from src.api import app; print\\(''FastAPI app loaded OK''\\)\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/docs)",
+      "Bash(curl -s -X POST http://localhost:8000/api/upload -F \"videos=@/dev/null;filename=test.mp4\")",
+      "Bash(curl -v -X POST http://localhost:8000/api/upload)"
+    ]
+  }
+}
