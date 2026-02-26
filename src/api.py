@@ -154,9 +154,12 @@ async def generate_video(req: GenerateRequest):
         "video_width": req.video_width,
         "video_height": req.video_height,
         "fps": req.fps,
+        "font_name": "Times New Roman",
         "font_size": 18,
         "font_color": "&H00FFFFFF",
         "outline_color": "&H00000000",
+        "auto_fit_font_size": True,
+        "split_by_comma": True,
         "whisper_model": req.whisper_model,
         "language": req.language,
     }

@@ -47,6 +47,7 @@ def run_with_config(
         cfg["srt_path"],
         cfg["whisper_model"],
         cfg["language"],
+        cfg["split_by_comma"],
     )
     report("whisper", "字幕文件已就绪", 100)
 
@@ -95,9 +96,13 @@ def run_with_config(
         cfg["output_no_sub"],
         cfg["final_output"],
         cfg["srt_path"],
+        cfg["video_width"],
+        cfg["video_height"],
+        cfg["font_name"],
         cfg["font_size"],
         cfg["font_color"],
         cfg["outline_color"],
+        cfg["auto_fit_font_size"],
     )
     report("ffmpeg", "字幕烧录完成", 100)
 

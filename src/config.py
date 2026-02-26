@@ -30,6 +30,13 @@ def _resolve(path: str, root: Path) -> str:
     return str(p.resolve())
 
 
+def _to_bool(value: str | None, default: bool) -> bool:
+    """将环境变量字符串转换为布尔值。"""
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def load_config() -> dict:
     """加载 .env 配置并返回配置字典。"""
     # 项目根目录（src 的上一级）
@@ -88,8 +95,11 @@ def load_config() -> dict:
     fps = int(os.getenv("FPS", "30"))
 
     font_size = int(os.getenv("FONT_SIZE", "18"))
+    font_name = os.getenv("FONT_NAME", "Times New Roman")
     font_color = os.getenv("FONT_COLOR", "&H00FFFFFF")
     outline_color = os.getenv("OUTLINE_COLOR", "&H00000000")
+    auto_fit_font_size = _to_bool(os.getenv("AUTO_FIT_FONT_SIZE"), True)
+    split_by_comma = _to_bool(os.getenv("SPLIT_BY_COMMA"), True)
 
     return {
         "audio_path": audio_path,
@@ -103,9 +113,12 @@ def load_config() -> dict:
         "video_width": video_width,
         "video_height": video_height,
         "fps": fps,
+        "font_name": font_name,
         "font_size": font_size,
         "font_color": font_color,
         "outline_color": outline_color,
+        "auto_fit_font_size": auto_fit_font_size,
+        "split_by_comma": split_by_comma,
         "whisper_model": whisper_model,
         "language": language,
     }

@@ -42,9 +42,12 @@ copy .env.example .env
 | `VIDEO_WIDTH` | 输出宽度（默认 1080） | `1080` |
 | `VIDEO_HEIGHT` | 输出高度（默认 1920） | `1920` |
 | `FPS` | 帧率（默认 30） | `30` |
-| `FONT_SIZE` | 字幕字号（默认 18） | `18` |
+| `FONT_NAME` | 字幕字体（默认新罗马） | `Times New Roman` |
+| `FONT_SIZE` | 字幕字号上限（默认 18，过长会自动缩小以尽量单行显示） | `18` |
+| `AUTO_FIT_FONT_SIZE` | 是否自动缩小字号以尽量单行显示（默认开启） | `true` |
 | `FONT_COLOR` | 字幕颜色（默认白色） | `&H00FFFFFF` |
-| `OUTLINE_COLOR` | 字幕描边颜色（默认黑色） | `&H00000000` |
+| `OUTLINE_COLOR` | 字幕描边颜色（当前默认不启用描边） | `&H00000000` |
+| `SPLIT_BY_COMMA` | 是否按逗号分句逐句显示（默认开启） | `true` |
 
 ### 2. 运行程序
 
