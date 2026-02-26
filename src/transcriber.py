@@ -1,7 +1,9 @@
 """歌词识别模块：使用 Whisper 识别音频歌词并生成 SRT 字幕文件。"""
 
 import os
+import shutil
 import subprocess
+from pathlib import Path
 
 
 def _srt_time_to_ms(ts: str) -> int:
@@ -23,31 +25,17 @@ def _ms_to_srt_time(total_ms: int) -> str:
     return f"{hh:02d}:{mm:02d}:{ss:02d},{ms:03d}"
 
 
-def _split_sentences_by_comma(text: str) -> list[str]:
-    """按逗号分句（英文逗号/中文逗号），每句按顺序单独显示。"""
+def _split_words(text: str) -> list[str]:
+    """将文本按词拆分为逐词字幕。"""
     merged = " ".join(line.strip() for line in text.splitlines() if line.strip())
     if not merged:
         return []
 
-    sentences: list[str] = []
-    current = ""
-    for ch in merged:
-        current += ch
-        if ch in {",", "，"}:
-            sentence = current.strip()
-            if sentence:
-                sentences.append(sentence)
-            current = ""
-
-    tail = current.strip()
-    if tail:
-        sentences.append(tail)
-
-    return sentences
+    return [word for word in merged.split() if word]
 
 
-def _normalize_srt_by_comma(srt_path: str) -> None:
-    """将字幕按逗号分句，并在原时间段内按文本长度重新分配每句时长。"""
+def _normalize_srt_word_by_word(srt_path: str) -> None:
+    """将字幕按词拆分，并在原时间段内按词长度重新分配每个词的显示时长。"""
     with open(srt_path, "r", encoding="utf-8") as f:
         content = f.read().strip()
 
@@ -88,26 +76,26 @@ def _normalize_srt_by_comma(srt_path: str) -> None:
     new_entries: list[tuple[int, int, str]] = []
 
     for start_ms, end_ms, text in parsed_entries:
-        sentences = _split_sentences_by_comma(text)
-        if len(sentences) <= 1:
+        words = _split_words(text)
+        if len(words) <= 1:
             new_entries.append((start_ms, end_ms, text.replace("\n", " ").strip()))
             continue
 
         duration = end_ms - start_ms
-        weights = [max(len(s.replace(" ", "")), 1) for s in sentences]
+        weights = [max(len(word), 1) for word in words]
         total_weight = sum(weights)
 
         cursor = start_ms
-        for idx, sentence in enumerate(sentences):
-            if idx == len(sentences) - 1:
+        for idx, word in enumerate(words):
+            if idx == len(words) - 1:
                 seg_end = end_ms
             else:
-                reserved = len(sentences) - idx - 1
+                reserved = len(words) - idx - 1
                 proposed = cursor + int(duration * weights[idx] / total_weight)
                 max_end = end_ms - reserved
                 seg_end = max(cursor + 1, min(proposed, max_end))
 
-            new_entries.append((cursor, seg_end, sentence))
+            new_entries.append((cursor, seg_end, word))
             cursor = seg_end
 
     output_lines: list[str] = []
@@ -126,7 +114,8 @@ def ensure_srt(
     srt_path: str,
     whisper_model: str,
     language: str,
-    split_by_comma: bool,
+    word_by_word_subtitle: bool,
+    temp_dir: str,
 ) -> str:
     """
     确保 SRT 字幕文件存在。如果不存在则调用 whisper 命令行识别生成。
@@ -136,7 +125,8 @@ def ensure_srt(
         srt_path: 期望的 SRT 文件路径（与音频同名，后缀为 .srt）
         whisper_model: Whisper 模型大小（tiny/base/small/medium/large）
         language: 音频语言（如 Swedish、English、Chinese 等）
-        split_by_comma: 是否按逗号将歌词分句为逐句显示
+        word_by_word_subtitle: 是否将歌词拆分为逐词显示
+        temp_dir: 临时目录（用于保存处理后的字幕副本）
 
     返回:
         SRT 文件路径
@@ -167,9 +157,15 @@ def ensure_srt(
 
         print(f"歌词识别完成，已保存到：{srt_path}")
 
-    if split_by_comma:
-        _normalize_srt_by_comma(srt_path)
-        print("字幕已按逗号分句重排为逐句显示")
-    else:
-        print("已关闭按逗号分句，保留原始字幕分段")
+    if word_by_word_subtitle:
+        temp_sub_dir = Path(temp_dir) / "subtitles"
+        temp_sub_dir.mkdir(parents=True, exist_ok=True)
+
+        processed_srt_path = temp_sub_dir / f"{Path(srt_path).stem}.word_by_word.srt"
+        shutil.copyfile(srt_path, processed_srt_path)
+        _normalize_srt_word_by_word(str(processed_srt_path))
+        print(f"字幕已重排为逐词显示（word by word）：{processed_srt_path}")
+        return str(processed_srt_path)
+
+    print("已关闭逐词字幕，保留原始字幕分段")
     return srt_path

@@ -99,7 +99,7 @@ def load_config() -> dict:
     font_color = os.getenv("FONT_COLOR", "&H00FFFFFF")
     outline_color = os.getenv("OUTLINE_COLOR", "&H00000000")
     auto_fit_font_size = _to_bool(os.getenv("AUTO_FIT_FONT_SIZE"), True)
-    split_by_comma = _to_bool(os.getenv("SPLIT_BY_COMMA"), True)
+    word_by_word_subtitle = _to_bool(os.getenv("WORD_BY_WORD_SUBTITLE"), True)
 
     return {
         "audio_path": audio_path,
@@ -118,7 +118,7 @@ def load_config() -> dict:
         "font_color": font_color,
         "outline_color": outline_color,
         "auto_fit_font_size": auto_fit_font_size,
-        "split_by_comma": split_by_comma,
+        "word_by_word_subtitle": word_by_word_subtitle,
         "whisper_model": whisper_model,
         "language": language,
     }

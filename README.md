@@ -47,7 +47,7 @@ copy .env.example .env
 | `AUTO_FIT_FONT_SIZE` | 是否自动缩小字号以尽量单行显示（默认开启） | `true` |
 | `FONT_COLOR` | 字幕颜色（默认白色） | `&H00FFFFFF` |
 | `OUTLINE_COLOR` | 字幕描边颜色（当前默认不启用描边） | `&H00000000` |
-| `SPLIT_BY_COMMA` | 是否按逗号分句逐句显示（默认开启） | `true` |
+| `WORD_BY_WORD_SUBTITLE` | 是否逐词显示歌词（默认开启） | `true` |
 
 ### 2. 运行程序
 
