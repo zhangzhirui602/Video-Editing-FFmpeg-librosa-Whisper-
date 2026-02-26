@@ -11,6 +11,7 @@ def cut_segments(
     video_width: int,
     video_height: int,
     fps: int,
+    on_segment_progress=None,
 ) -> list[str]:
     """
     按切换时间点裁剪视频片段。
@@ -22,25 +23,30 @@ def cut_segments(
         video_width: 输出视频宽度
         video_height: 输出视频高度
         fps: 输出帧率
+        on_segment_progress: 可选回调 (当前序号, 总数)
 
     返回:
         裁剪后的视频片段路径列表
     """
     os.makedirs(temp_dir, exist_ok=True)
     segment_files = []
+    total = len(cut_times) - 1
 
     scale_filter = (
         f"scale={video_width}:{video_height}:force_original_aspect_ratio=decrease,"
         f"pad={video_width}:{video_height}:(ow-iw)/2:(oh-ih)/2,setsar=1"
     )
 
-    for i in range(len(cut_times) - 1):
+    for i in range(total):
         start = cut_times[i]
         duration = cut_times[i + 1] - cut_times[i]
         clip_path = video_clips[i % len(video_clips)]
         out_file = os.path.join(temp_dir, f"seg_{i:03d}.mp4")
 
         print(f"处理第 {i+1} 段（{duration:.3f}s）...")
+        if on_segment_progress:
+            on_segment_progress(i, total)
+
         subprocess.run(
             [
                 "ffmpeg", "-y", "-i", clip_path,
