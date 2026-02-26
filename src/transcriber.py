@@ -82,6 +82,12 @@ def _normalize_srt_word_by_word(srt_path: str) -> None:
             continue
 
         duration = end_ms - start_ms
+
+        # If there isn't at least 1ms per word, don't split — avoid invalid/inverted segments.
+        if duration < len(words):
+            new_entries.append((start_ms, end_ms, text.replace("\n", " ").strip()))
+            continue
+
         weights = [max(len(word), 1) for word in words]
         total_weight = sum(weights)
 
