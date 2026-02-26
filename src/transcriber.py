@@ -1,7 +1,9 @@
 """歌词识别模块：使用 Whisper 识别音频歌词并生成 SRT 字幕文件。"""
 
 import os
+import shutil
 import subprocess
+from pathlib import Path
 
 
 def _srt_time_to_ms(ts: str) -> int:
@@ -113,6 +115,7 @@ def ensure_srt(
     whisper_model: str,
     language: str,
     word_by_word_subtitle: bool,
+    temp_dir: str,
 ) -> str:
     """
     确保 SRT 字幕文件存在。如果不存在则调用 whisper 命令行识别生成。
@@ -123,6 +126,7 @@ def ensure_srt(
         whisper_model: Whisper 模型大小（tiny/base/small/medium/large）
         language: 音频语言（如 Swedish、English、Chinese 等）
         word_by_word_subtitle: 是否将歌词拆分为逐词显示
+        temp_dir: 临时目录（用于保存处理后的字幕副本）
 
     返回:
         SRT 文件路径
@@ -154,8 +158,14 @@ def ensure_srt(
         print(f"歌词识别完成，已保存到：{srt_path}")
 
     if word_by_word_subtitle:
-        _normalize_srt_word_by_word(srt_path)
-        print("字幕已重排为逐词显示（word by word）")
-    else:
-        print("已关闭逐词字幕，保留原始字幕分段")
+        temp_sub_dir = Path(temp_dir) / "subtitles"
+        temp_sub_dir.mkdir(parents=True, exist_ok=True)
+
+        processed_srt_path = temp_sub_dir / f"{Path(srt_path).stem}.word_by_word.srt"
+        shutil.copyfile(srt_path, processed_srt_path)
+        _normalize_srt_word_by_word(str(processed_srt_path))
+        print(f"字幕已重排为逐词显示（word by word）：{processed_srt_path}")
+        return str(processed_srt_path)
+
+    print("已关闭逐词字幕，保留原始字幕分段")
     return srt_path

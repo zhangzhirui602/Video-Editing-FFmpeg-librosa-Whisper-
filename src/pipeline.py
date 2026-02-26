@@ -19,6 +19,7 @@ def run() -> None:
         cfg["whisper_model"],
         cfg["language"],
         cfg["word_by_word_subtitle"],
+        cfg["temp_dir"],
     )
 
     # 第三步：检测节拍，获取切换时间点
