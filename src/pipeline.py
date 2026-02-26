@@ -18,6 +18,7 @@ def run() -> None:
         cfg["srt_path"],
         cfg["whisper_model"],
         cfg["language"],
+        cfg["split_by_comma"],
     )
 
     # 第三步：检测节拍，获取切换时间点
@@ -51,7 +52,11 @@ def run() -> None:
         cfg["output_no_sub"],
         cfg["final_output"],
         cfg["srt_path"],
+        cfg["video_width"],
+        cfg["video_height"],
+        cfg["font_name"],
         cfg["font_size"],
         cfg["font_color"],
         cfg["outline_color"],
+        cfg["auto_fit_font_size"],
     )

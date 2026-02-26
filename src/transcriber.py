@@ -4,7 +4,130 @@ import os
 import subprocess
 
 
-def ensure_srt(audio_path: str, srt_path: str, whisper_model: str, language: str) -> str:
+def _srt_time_to_ms(ts: str) -> int:
+    """将 SRT 时间戳（HH:MM:SS,mmm）转换为毫秒。"""
+    hh_mm_ss, ms = ts.split(",")
+    hh, mm, ss = hh_mm_ss.split(":")
+    return ((int(hh) * 60 + int(mm)) * 60 + int(ss)) * 1000 + int(ms)
+
+
+def _ms_to_srt_time(total_ms: int) -> str:
+    """将毫秒转换为 SRT 时间戳（HH:MM:SS,mmm）。"""
+    total_ms = max(0, total_ms)
+    ms = total_ms % 1000
+    total_sec = total_ms // 1000
+    ss = total_sec % 60
+    total_min = total_sec // 60
+    mm = total_min % 60
+    hh = total_min // 60
+    return f"{hh:02d}:{mm:02d}:{ss:02d},{ms:03d}"
+
+
+def _split_sentences_by_comma(text: str) -> list[str]:
+    """按逗号分句（英文逗号/中文逗号），每句按顺序单独显示。"""
+    merged = " ".join(line.strip() for line in text.splitlines() if line.strip())
+    if not merged:
+        return []
+
+    sentences: list[str] = []
+    current = ""
+    for ch in merged:
+        current += ch
+        if ch in {",", "，"}:
+            sentence = current.strip()
+            if sentence:
+                sentences.append(sentence)
+            current = ""
+
+    tail = current.strip()
+    if tail:
+        sentences.append(tail)
+
+    return sentences
+
+
+def _normalize_srt_by_comma(srt_path: str) -> None:
+    """将字幕按逗号分句，并在原时间段内按文本长度重新分配每句时长。"""
+    with open(srt_path, "r", encoding="utf-8") as f:
+        content = f.read().strip()
+
+    if not content:
+        return
+
+    blocks = content.replace("\r\n", "\n").split("\n\n")
+    parsed_entries: list[tuple[int, int, str]] = []
+
+    for block in blocks:
+        lines = [line for line in block.split("\n") if line.strip()]
+        if not lines:
+            continue
+
+        time_index = -1
+        for i, line in enumerate(lines):
+            if "-->" in line:
+                time_index = i
+                break
+        if time_index < 0:
+            continue
+
+        start_ts, end_ts = [part.strip() for part in lines[time_index].split("-->", maxsplit=1)]
+        text = "\n".join(lines[time_index + 1:]).strip()
+        if not text:
+            continue
+
+        start_ms = _srt_time_to_ms(start_ts)
+        end_ms = _srt_time_to_ms(end_ts)
+        if end_ms <= start_ms:
+            continue
+
+        parsed_entries.append((start_ms, end_ms, text))
+
+    if not parsed_entries:
+        return
+
+    new_entries: list[tuple[int, int, str]] = []
+
+    for start_ms, end_ms, text in parsed_entries:
+        sentences = _split_sentences_by_comma(text)
+        if len(sentences) <= 1:
+            new_entries.append((start_ms, end_ms, text.replace("\n", " ").strip()))
+            continue
+
+        duration = end_ms - start_ms
+        weights = [max(len(s.replace(" ", "")), 1) for s in sentences]
+        total_weight = sum(weights)
+
+        cursor = start_ms
+        for idx, sentence in enumerate(sentences):
+            if idx == len(sentences) - 1:
+                seg_end = end_ms
+            else:
+                reserved = len(sentences) - idx - 1
+                proposed = cursor + int(duration * weights[idx] / total_weight)
+                max_end = end_ms - reserved
+                seg_end = max(cursor + 1, min(proposed, max_end))
+
+            new_entries.append((cursor, seg_end, sentence))
+            cursor = seg_end
+
+    output_lines: list[str] = []
+    for index, (start_ms, end_ms, text) in enumerate(new_entries, start=1):
+        output_lines.append(str(index))
+        output_lines.append(f"{_ms_to_srt_time(start_ms)} --> {_ms_to_srt_time(end_ms)}")
+        output_lines.append(text)
+        output_lines.append("")
+
+    with open(srt_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(output_lines).rstrip() + "\n")
+
+
+def ensure_srt(
+    audio_path: str,
+    srt_path: str,
+    whisper_model: str,
+    language: str,
+    split_by_comma: bool,
+) -> str:
     """
     确保 SRT 字幕文件存在。如果不存在则调用 whisper 命令行识别生成。
 
@@ -13,34 +136,40 @@ def ensure_srt(audio_path: str, srt_path: str, whisper_model: str, language: str
         srt_path: 期望的 SRT 文件路径（与音频同名，后缀为 .srt）
         whisper_model: Whisper 模型大小（tiny/base/small/medium/large）
         language: 音频语言（如 Swedish、English、Chinese 等）
+        split_by_comma: 是否按逗号将歌词分句为逐句显示
 
     返回:
         SRT 文件路径
     """
     if os.path.isfile(srt_path):
         print(f"已找到字幕文件：{srt_path}")
-        return srt_path
+    else:
+        # 确保输出目录存在
+        output_dir = os.path.dirname(srt_path)
+        os.makedirs(output_dir, exist_ok=True)
 
-    # 确保输出目录存在
-    output_dir = os.path.dirname(srt_path)
-    os.makedirs(output_dir, exist_ok=True)
+        print(f"未找到字幕文件，正在使用 Whisper ({whisper_model}) 识别歌词...")
+        subprocess.run(
+            [
+                "whisper", audio_path,
+                "--model", whisper_model,
+                "--language", language,
+                "--output_dir", output_dir,
+                "--output_format", "srt",
+            ],
+            check=True,
+        )
 
-    print(f"未找到字幕文件，正在使用 Whisper ({whisper_model}) 识别歌词...")
-    subprocess.run(
-        [
-            "whisper", audio_path,
-            "--model", whisper_model,
-            "--language", language,
-            "--output_dir", output_dir,
-            "--output_format", "srt",
-        ],
-        check=True,
-    )
+        # whisper 命令行输出文件名与音频同名
+        if not os.path.isfile(srt_path):
+            print(f"[错误] Whisper 识别完成但未找到预期的字幕文件：{srt_path}")
+            raise FileNotFoundError(srt_path)
 
-    # whisper 命令行输出文件名与音频同名
-    if not os.path.isfile(srt_path):
-        print(f"[错误] Whisper 识别完成但未找到预期的字幕文件：{srt_path}")
-        raise FileNotFoundError(srt_path)
+        print(f"歌词识别完成，已保存到：{srt_path}")
 
-    print(f"歌词识别完成，已保存到：{srt_path}")
+    if split_by_comma:
+        _normalize_srt_by_comma(srt_path)
+        print("字幕已按逗号分句重排为逐句显示")
+    else:
+        print("已关闭按逗号分句，保留原始字幕分段")
     return srt_path
