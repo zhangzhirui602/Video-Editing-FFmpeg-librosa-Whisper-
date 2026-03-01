@@ -15,6 +15,7 @@ from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.document import Document
 from prompt_toolkit.history import FileHistory
+from prompt_toolkit.shortcuts import PromptSession
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn, TimeElapsedColumn
@@ -247,19 +248,28 @@ def _run_interactive_shell() -> bool:
     console.print("[dim]Interactive mode: enter commands like 'status', 'project list', 'generate'.[/dim]")
     console.print("[dim]Type 'exit' or 'quit' to leave.[/dim]")
 
+    # 打印空白行，让提示符出现在终端中下方而非顶部
+    terminal_height = shutil.get_terminal_size(fallback=(80, 24)).lines
+    padding = max(terminal_height // 3, 4)
+    print("\n" * padding, end="", flush=True)
+
     cmd = typer.main.get_command(app)
     history_path = str(_root_dir() / "projects" / ".repl_history")
-    history = FileHistory(history_path)
+
+    # 使用 PromptSession 在循环外创建一次，避免每次 prompt() 重新初始化导致终端滚屏
+    session: PromptSession = PromptSession(
+        history=FileHistory(history_path),
+        auto_suggest=AutoSuggestFromHistory(),
+        reserve_space_for_menu=4,
+    )
 
     while True:
         context = _ctx()
         try:
-            raw = prompt(
+            raw = session.prompt(
                 f"{context.current_project} > ",
                 completer=ReplCompleter(context.root),
                 complete_while_typing=True,
-                history=history,
-                auto_suggest=AutoSuggestFromHistory(),
             ).strip()
         except (EOFError, KeyboardInterrupt):
             console.print("[cyan]Bye.[/cyan]")
@@ -429,16 +439,26 @@ def project_switch_command(name: str = typer.Argument(..., help="project name"))
 def srt_command(
     split_mode: str | None = typer.Option(None, "--split-mode", help="word/comma/sentence/none"),
 ) -> None:
-    """基于当前项目音频生成 SRT。"""
+    """基于当前项目音频生成 SRT（已有文件时询问是否覆盖）。"""
     lang = _lang()
     context = _ctx()
     cfg = load_config(project_dir=context.project_dir, verbose=False, require_videos=False)
     mode = _pick_split_mode(split_mode, lang)
-    active_srt = _get_active_subtitle(context.project_dir)
-    source_hint = cfg.get("srt_source_path")
-    if not source_hint and active_srt and not Path(cfg["srt_path"]).is_file():
-        source_hint = active_srt
 
+    lyric_srt = Path(cfg["srt_path"])
+    if lyric_srt.exists():
+        overwrite = Confirm.ask(t("srt_overwrite_confirm", lang), default=True)
+        if not overwrite:
+            console.print(f"[yellow]{t('operation_cancelled', lang)}[/yellow]")
+            raise typer.Exit(code=0)
+        # 用户确认覆盖：删除旧文件及 temp 下所有处理后的 SRT
+        lyric_srt.unlink()
+        subtitles_temp_dir = Path(cfg["temp_dir"]) / "subtitles"
+        if subtitles_temp_dir.is_dir():
+            for old in subtitles_temp_dir.glob("*.srt"):
+                old.unlink()
+
+    # srt 命令只从音频识别，不使用任何外部 source_hint
     srt_path = ensure_srt(
         cfg["audio_path"],
         cfg["srt_path"],
@@ -446,7 +466,7 @@ def srt_command(
         cfg["language"],
         mode,
         cfg["temp_dir"],
-        source_hint,
+        srt_source_path=None,
         verbose=False,
     )
     active_path = _set_active_subtitle(context.project_dir, srt_path)

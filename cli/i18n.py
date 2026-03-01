@@ -57,6 +57,10 @@ TEXTS = {
         "zh": "操作已取消",
         "en": "Operation cancelled",
     },
+    "srt_overwrite_confirm": {
+        "zh": "已存在旧的 SRT 文件，是否重新识别并覆盖？",
+        "en": "An existing SRT file was found. Re-generate and overwrite?",
+    },
 }
 
 
