@@ -200,36 +200,39 @@ def _get_active_subtitle(project_dir: Path) -> str | None:
 class _GenerateProgressView:
     """生成流程的动态进度条视图。"""
 
-    STAGE_LABELS = {
-        "srt": "字幕准备",
-        "beat": "节拍分析",
-        "cut": "视频切片",
-        "concat": "拼接合成",
-        "burn": "字幕烧录",
+    STAGE_KEYS = {
+        "srt": "stage_srt",
+        "beat": "stage_beat",
+        "cut": "stage_cut",
+        "concat": "stage_concat",
+        "burn": "stage_burn",
     }
 
-    def __init__(self, progress: Progress) -> None:
+    def __init__(self, progress: Progress, lang: str) -> None:
         self.progress = progress
-        self.overall_task = progress.add_task("总进度", total=5)
-        self.cut_task = progress.add_task("切片进度", total=1, visible=False)
+        self.lang = lang
+        self.overall_task = progress.add_task(t("progress_overall", lang), total=5)
+        self.cut_task = progress.add_task(t("progress_cut_task", lang), total=1, visible=False)
 
     def on_event(self, event: str, payload: dict) -> None:
         stage = str(payload.get("stage", ""))
-        label = self.STAGE_LABELS.get(stage, stage)
+        label = t(self.STAGE_KEYS.get(stage, stage), self.lang)
+        overall = t("progress_overall", self.lang)
+        cut_task_label = t("progress_cut_task", self.lang)
 
         if event == "stage_start":
-            self.progress.update(self.overall_task, description=f"总进度 · {label}")
+            self.progress.update(self.overall_task, description=f"{overall} · {label}")
             if stage == "cut":
                 total = max(int(payload.get("total", 1)), 1)
                 self.progress.reset(self.cut_task, total=total, completed=0, visible=True)
-                self.progress.update(self.cut_task, description=f"切片进度 · 0/{total}")
+                self.progress.update(self.cut_task, description=f"{cut_task_label} · 0/{total}")
             return
 
         if event == "stage_progress" and stage == "cut":
             done = int(payload.get("done", 0))
             total = max(int(payload.get("total", 1)), 1)
             self.progress.update(self.cut_task, completed=done, total=total)
-            self.progress.update(self.cut_task, description=f"切片进度 · {done}/{total}")
+            self.progress.update(self.cut_task, description=f"{cut_task_label} · {done}/{total}")
             return
 
         if event == "stage_done":
@@ -237,7 +240,7 @@ class _GenerateProgressView:
             if stage == "cut":
                 self.progress.update(self.cut_task, visible=False)
             if stage == "burn":
-                self.progress.update(self.overall_task, description="总进度 · 完成")
+                self.progress.update(self.overall_task, description=t("progress_overall_done", self.lang))
 
 
 def _run_interactive_shell() -> bool:
@@ -509,7 +512,7 @@ def generate_command(
         TimeElapsedColumn(),
         console=console,
     ) as progress:
-        reporter = _GenerateProgressView(progress)
+        reporter = _GenerateProgressView(progress, lang)
         run(
             project_dir=context.project_dir,
             prepared_srt_path=active_srt,

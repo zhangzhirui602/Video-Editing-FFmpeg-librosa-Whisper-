@@ -61,6 +61,38 @@ TEXTS = {
         "zh": "已存在旧的 SRT 文件，是否重新识别并覆盖？",
         "en": "An existing SRT file was found. Re-generate and overwrite?",
     },
+    "progress_overall": {
+        "zh": "总进度",
+        "en": "Overall",
+    },
+    "progress_overall_done": {
+        "zh": "总进度 · 完成",
+        "en": "Overall · Done",
+    },
+    "progress_cut_task": {
+        "zh": "切片进度",
+        "en": "Clip progress",
+    },
+    "stage_srt": {
+        "zh": "字幕准备",
+        "en": "Subtitle prep",
+    },
+    "stage_beat": {
+        "zh": "节拍分析",
+        "en": "Beat analysis",
+    },
+    "stage_cut": {
+        "zh": "视频切片",
+        "en": "Video cutting",
+    },
+    "stage_concat": {
+        "zh": "拼接合成",
+        "en": "Concatenating",
+    },
+    "stage_burn": {
+        "zh": "字幕烧录",
+        "en": "Burning subs",
+    },
 }
 
 
