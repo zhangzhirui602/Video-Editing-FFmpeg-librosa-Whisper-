@@ -36,6 +36,13 @@ _job_status: dict = {
     "error": None,
 }
 
+_confirm_lock = threading.Lock()
+_confirm_state: dict[str, str | None] = {
+    "token": None,
+    "project": None,
+    "action": None,
+}
+
 
 # ---------------------------------------------------------------------------
 # Internal helpers（源自 cli/app.py，保持与 CLI 一致的字幕管理策略）
@@ -97,6 +104,56 @@ def _set_active_subtitle(project_dir: Path, source_path: str) -> str:
         f.write(data)
 
     return str(target)
+
+
+def _clear_existing_srt(cfg: dict, project_dir: Path) -> None:
+    """清理 lyric 目录和 temp 目录下已有字幕，供“重新生成”场景使用。"""
+    lyric_srt = Path(cfg["srt_path"])
+    if lyric_srt.exists():
+        lyric_srt.unlink()
+
+    temp_subtitles_dir = Path(cfg["temp_dir"]) / "subtitles"
+    if temp_subtitles_dir.is_dir():
+        for old in temp_subtitles_dir.glob("*.srt"):
+            old.unlink()
+
+    active = _active_subtitle_path(project_dir)
+    if active.exists():
+        active.unlink()
+
+
+def _issue_confirmation(project: str, action: str, subtitle_path: Path) -> str:
+    """签发一次性确认 token，强制 MCP 客户端先询问用户再二次调用。"""
+    token = f"cfm-{int(time.time() * 1000)}"
+    with _confirm_lock:
+        _confirm_state.update({"token": token, "project": project, "action": action})
+    return (
+        f"SRT already exists: {subtitle_path}. Please confirm with user first. "
+        "Ask user whether to regenerate subtitles, then call again with both "
+        f"regenerate_srt=true/false and confirmation_token='{token}'."
+    )
+
+
+def _consume_confirmation(project: str, action: str, confirmation_token: str | None) -> str | None:
+    """校验并消费一次性确认 token；失败返回错误消息，成功返回 None。"""
+    if not confirmation_token:
+        return "Confirmation required: missing confirmation_token. Please ask user first and retry."
+
+    with _confirm_lock:
+        expected_token = _confirm_state["token"]
+        expected_project = _confirm_state["project"]
+        expected_action = _confirm_state["action"]
+
+        if (
+            confirmation_token != expected_token
+            or project != expected_project
+            or action != expected_action
+        ):
+            return "Confirmation required: invalid or expired confirmation_token. Please call again without token to get a new one."
+
+        _confirm_state.update({"token": None, "project": None, "action": None})
+
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -213,11 +270,20 @@ def get_status() -> str:
 
 
 @mcp.tool()
-def generate_srt(split_mode: str = "word") -> str:
+def generate_srt(
+    split_mode: str = "word",
+    regenerate_srt: bool | None = None,
+    confirmation_token: str | None = None,
+) -> str:
     """为当前项目的音频生成 SRT 字幕文件。
 
     Args:
         split_mode: 字幕拆分方式，可选 word（逐词）/ comma（逗号）/ sentence（句子）/ none（整段），默认 word
+        regenerate_srt: 当检测到已有字幕时，是否重新生成。
+            - True: 删除旧 SRT 并重新生成
+            - False: 复用已有 SRT
+            - None: 不执行，先返回确认提示与 token
+        confirmation_token: 首次返回的确认 token。检测到已有字幕时必填。
     """
     if split_mode not in {"word", "comma", "sentence", "none"}:
         return "Error: split_mode must be one of: word, comma, sentence, none."
@@ -225,6 +291,21 @@ def generate_srt(split_mode: str = "word") -> str:
     root = _root()
     ctx = get_context(root)
     cfg = load_config(project_dir=ctx.project_dir, verbose=False, require_videos=False)
+
+    lyric_srt = Path(cfg["srt_path"])
+    active_srt = _active_subtitle_path(ctx.project_dir)
+    has_existing_srt = lyric_srt.exists() or active_srt.exists()
+    if has_existing_srt and regenerate_srt is None:
+        subtitle_path = lyric_srt if lyric_srt.exists() else active_srt
+        return _issue_confirmation(ctx.current_project, "generate_srt", subtitle_path)
+
+    if has_existing_srt:
+        token_error = _consume_confirmation(ctx.current_project, "generate_srt", confirmation_token)
+        if token_error:
+            return token_error
+
+    if lyric_srt.exists() and regenerate_srt:
+        _clear_existing_srt(cfg, ctx.project_dir)
 
     srt_path = ensure_srt(
         cfg["audio_path"],
@@ -242,11 +323,19 @@ def generate_srt(split_mode: str = "word") -> str:
 
 
 @mcp.tool()
-def generate_video() -> str:
+def generate_video(regenerate_srt: bool | None = None, confirmation_token: str | None = None) -> str:
     """基于当前项目的素材（音频 + 视频 + 字幕）在后台生成最终视频。
 
     立即返回，生成在后台运行。请用 get_video_status 查询进度和结果。
-    若尚无激活字幕，将先以默认 split_mode（word）自动生成字幕再继续。
+    若检测到已有字幕且未完成二次确认，将先返回确认提示与 token。
+    若尚无激活字幕，将按配置 split_mode 自动生成字幕再继续。
+
+    Args:
+        regenerate_srt: 当检测到已有字幕时，是否重新生成。
+            - True: 删除旧 SRT 并重新生成
+            - False: 复用已有 SRT
+            - None: 不执行，先返回确认提示与 token
+        confirmation_token: 首次返回的确认 token。检测到已有字幕时必填。
     """
     with _job_lock:
         if _job_status["running"]:
@@ -257,6 +346,19 @@ def generate_video() -> str:
 
     root = _root()
     ctx = get_context(root)
+    cfg = load_config(project_dir=ctx.project_dir, verbose=False)
+    lyric_srt = Path(cfg["srt_path"])
+    active_srt_path = _active_subtitle_path(ctx.project_dir)
+    has_existing_srt = lyric_srt.exists() or active_srt_path.exists()
+
+    if has_existing_srt and regenerate_srt is None:
+        subtitle_path = lyric_srt if lyric_srt.exists() else active_srt_path
+        return _issue_confirmation(ctx.current_project, "generate_video", subtitle_path)
+
+    if has_existing_srt:
+        token_error = _consume_confirmation(ctx.current_project, "generate_video", confirmation_token)
+        if token_error:
+            return token_error
 
     def _worker() -> None:
         with _job_lock:
@@ -270,8 +372,11 @@ def generate_video() -> str:
             })
         try:
             cfg = load_config(project_dir=ctx.project_dir, verbose=False)
+            if Path(cfg["srt_path"]).exists() and regenerate_srt:
+                _clear_existing_srt(cfg, ctx.project_dir)
+
             active_srt = _get_active_subtitle(ctx.project_dir)
-            if not active_srt:
+            if regenerate_srt or not active_srt:
                 srt_path = ensure_srt(
                     cfg["audio_path"],
                     cfg["srt_path"],

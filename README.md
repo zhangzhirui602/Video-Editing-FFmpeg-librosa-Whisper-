@@ -167,6 +167,64 @@ python main.py srt --split-mode none
 python main.py generate
 ```
 
+## MCP（Claude）调用说明
+
+当你通过 MCP 调用 `server.py` 提供的工具时，和 CLI 有一个关键区别：
+
+- CLI 是交互式，会直接弹出“是否覆盖已有 SRT”的确认。
+- MCP 是非交互式，不能直接弹输入框，因此改为“先返回确认提示，再由客户端二次调用并带参数确认”。
+
+### 相关工具参数
+
+- `generate_srt(split_mode="word", regenerate_srt=None, confirmation_token=None)`
+- `generate_video(regenerate_srt=None, confirmation_token=None)`
+
+`regenerate_srt` 的含义：
+
+- `true`：删除已有字幕并重新生成
+- `false`：保留已有字幕并继续
+- `null`/不传：如果检测到已有字幕，会返回“请确认 + confirmation_token”的提示，不会直接执行
+
+`confirmation_token` 的含义：
+
+- 首次调用命中“已有字幕”时，工具返回一次性 token
+- 第二次调用必须带上这个 token，才会真正执行
+- 这样可以防止客户端自动传参绕过“先询问用户”的步骤
+
+### 推荐调用流程
+
+1. 先调用 `generate_video()` 或 `generate_srt()`（不传 `regenerate_srt` 和 `confirmation_token`）。
+2. 如果返回 `SRT already exists...`，从返回文本中提取 `confirmation_token='...'`。
+3. 询问用户是否重建字幕。
+4. 再按用户选择调用（必须带 token）：
+	- 重建：`generate_video(regenerate_srt=true, confirmation_token="<token>")` 或 `generate_srt(regenerate_srt=true, confirmation_token="<token>")`
+	- 不重建：`generate_video(regenerate_srt=false, confirmation_token="<token>")` 或 `generate_srt(regenerate_srt=false, confirmation_token="<token>")`
+
+这样可以在 MCP 场景下实现与 CLI 等价的“确认后再覆盖”行为。
+
+### Claude 提示词模板（可直接复制）
+
+将下面这段作为系统提示词或会话开场指令发给 Claude：
+
+```text
+你正在调用一个 MCP 视频工具。请严格遵守以下规则：
+
+1) 调用 `generate_video()` 或 `generate_srt()` 时，第一轮不要传 `regenerate_srt` 和 `confirmation_token`。
+2) 如果工具返回包含 "SRT already exists" 或 "Please confirm"：
+	 - 先从返回文本中提取 `confirmation_token='...'`
+	 - 再用自然语言询问用户：是否重新生成 SRT？
+	 - 等用户明确回答后，再进行第二次调用：
+		 - 用户同意重建：传 `regenerate_srt=true` 且带 `confirmation_token`
+		 - 用户不同意重建：传 `regenerate_srt=false` 且带 `confirmation_token`
+3) 在用户回复前，不要自动二次调用。
+4) 若用户回复含糊（如“随便”、“你决定”），先追问一次并等待明确选择。
+
+可用询问句模板：
+"检测到已有字幕文件（SRT）。你希望我重新生成字幕吗？回复 `是`（重建）或 `否`（沿用现有字幕）。"
+```
+
+建议在 Claude 客户端中，把上面模板放在工具使用策略里，优先级高于普通任务描述。
+
 ### 补全与历史
 
 - 交互模式支持 `Tab` 自动补全（命令、子命令、项目名、`split-mode` 选项）
