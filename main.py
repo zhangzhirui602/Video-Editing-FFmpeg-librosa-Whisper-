@@ -1,6 +1,7 @@
-"""入口文件：启动视频编辑流程。"""
+"""CLI 入口文件。"""
 
-from src.pipeline import run
+from cli.app import app
+
 
 if __name__ == "__main__":
-    run()
+    app()
