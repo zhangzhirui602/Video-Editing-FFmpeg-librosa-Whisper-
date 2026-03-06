@@ -177,7 +177,7 @@ python main.py generate
 ### 相关工具参数
 
 - `generate_srt(split_mode="word", regenerate_srt=None, confirmation_token=None)`
-- `generate_video(regenerate_srt=None, confirmation_token=None)`
+- `generate_video(regenerate_srt=None, confirmation_token=None, split_mode=None)`
 
 `regenerate_srt` 的含义：
 
@@ -197,7 +197,7 @@ python main.py generate
 2. 如果返回 `SRT already exists...`，从返回文本中提取 `confirmation_token='...'`。
 3. 询问用户是否重建字幕。
 4. 再按用户选择调用（必须带 token）：
-	- 重建：`generate_video(regenerate_srt=true, confirmation_token="<token>")` 或 `generate_srt(regenerate_srt=true, confirmation_token="<token>")`
+	- 重建：`generate_video(regenerate_srt=true, confirmation_token="<token>", split_mode="word")` 或 `generate_srt(regenerate_srt=true, confirmation_token="<token>")`
 	- 不重建：`generate_video(regenerate_srt=false, confirmation_token="<token>")` 或 `generate_srt(regenerate_srt=false, confirmation_token="<token>")`
 
 这样可以在 MCP 场景下实现与 CLI 等价的“确认后再覆盖”行为。

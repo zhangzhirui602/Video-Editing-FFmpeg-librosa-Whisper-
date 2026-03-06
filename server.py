@@ -304,7 +304,7 @@ def generate_srt(
         if token_error:
             return token_error
 
-    if lyric_srt.exists() and regenerate_srt:
+    if has_existing_srt and regenerate_srt:
         _clear_existing_srt(cfg, ctx.project_dir)
 
     srt_path = ensure_srt(
@@ -323,7 +323,11 @@ def generate_srt(
 
 
 @mcp.tool()
-def generate_video(regenerate_srt: bool | None = None, confirmation_token: str | None = None) -> str:
+def generate_video(
+    regenerate_srt: bool | None = None,
+    confirmation_token: str | None = None,
+    split_mode: str | None = None,
+) -> str:
     """基于当前项目的素材（音频 + 视频 + 字幕）在后台生成最终视频。
 
     立即返回，生成在后台运行。请用 get_video_status 查询进度和结果。
@@ -336,6 +340,9 @@ def generate_video(regenerate_srt: bool | None = None, confirmation_token: str |
             - False: 复用已有 SRT
             - None: 不执行，先返回确认提示与 token
         confirmation_token: 首次返回的确认 token。检测到已有字幕时必填。
+        split_mode: 仅在 regenerate_srt=True 时生效，可选 word/comma/sentence/none。
+            - 传值时：按该模式重建字幕
+            - 不传时：使用 .env 配置中的 split_mode
     """
     with _job_lock:
         if _job_status["running"]:
@@ -347,6 +354,13 @@ def generate_video(regenerate_srt: bool | None = None, confirmation_token: str |
     root = _root()
     ctx = get_context(root)
     cfg = load_config(project_dir=ctx.project_dir, verbose=False)
+    effective_split_mode = cfg["split_mode"]
+    if split_mode is not None:
+        candidate = split_mode.strip().lower()
+        if candidate not in {"word", "comma", "sentence", "none"}:
+            return "Error: split_mode must be one of: word, comma, sentence, none."
+        effective_split_mode = candidate
+
     lyric_srt = Path(cfg["srt_path"])
     active_srt_path = _active_subtitle_path(ctx.project_dir)
     has_existing_srt = lyric_srt.exists() or active_srt_path.exists()
@@ -372,7 +386,7 @@ def generate_video(regenerate_srt: bool | None = None, confirmation_token: str |
             })
         try:
             cfg = load_config(project_dir=ctx.project_dir, verbose=False)
-            if Path(cfg["srt_path"]).exists() and regenerate_srt:
+            if regenerate_srt:
                 _clear_existing_srt(cfg, ctx.project_dir)
 
             active_srt = _get_active_subtitle(ctx.project_dir)
@@ -382,7 +396,7 @@ def generate_video(regenerate_srt: bool | None = None, confirmation_token: str |
                     cfg["srt_path"],
                     cfg["whisper_model"],
                     cfg["language"],
-                    cfg["split_mode"],
+                    effective_split_mode,
                     cfg["temp_dir"],
                     cfg.get("srt_source_path"),
                     verbose=False,
@@ -403,6 +417,7 @@ def generate_video(regenerate_srt: bool | None = None, confirmation_token: str |
     thread.start()
     return (
         f"Video generation started for project '{ctx.current_project}'. "
+        f"Subtitle split mode: {effective_split_mode}. "
         "This usually takes 3–10 minutes. Use get_video_status to check progress."
     )
 
