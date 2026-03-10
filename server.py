@@ -61,6 +61,22 @@ def _active_subtitle_path(project_dir: Path) -> Path:
     return _subtitles_dir(project_dir) / "active.srt"
 
 
+def _latest_srt_in_dir(directory: Path) -> Path | None:
+    """返回目录里最新的 .srt 文件；若目录不存在或为空则返回 None。"""
+    if not directory.is_dir():
+        return None
+
+    files = sorted(
+        directory.glob("*.srt"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    if not files:
+        return None
+
+    return files[0]
+
+
 def _get_active_subtitle(project_dir: Path) -> str | None:
     """返回当前激活字幕路径；不存在时返回 None。"""
     subtitles_dir = _subtitles_dir(project_dir)
@@ -129,9 +145,31 @@ def _issue_confirmation(project: str, action: str, subtitle_path: Path) -> str:
         _confirm_state.update({"token": token, "project": project, "action": action})
     return (
         f"SRT already exists: {subtitle_path}. Please confirm with user first. "
-        "Ask user whether to regenerate subtitles, then call again with both "
+        "Do NOT auto-decide. Ask user whether to regenerate subtitles first, then call again with both "
         f"regenerate_srt=true/false and confirmation_token='{token}'."
     )
+
+
+def _find_existing_subtitle_for_confirmation(cfg: dict, project_dir: Path) -> Path | None:
+    """查找项目中可复用的字幕，用于决定是否必须先询问用户。"""
+    lyric_srt = Path(cfg["srt_path"])
+    if lyric_srt.exists():
+        return lyric_srt
+
+    lyric_dir = lyric_srt.parent
+    any_lyric_srt = _latest_srt_in_dir(lyric_dir)
+    if any_lyric_srt:
+        return any_lyric_srt
+
+    active_srt = _active_subtitle_path(project_dir)
+    if active_srt.exists():
+        return active_srt
+
+    any_temp_srt = _latest_srt_in_dir(_subtitles_dir(project_dir))
+    if any_temp_srt:
+        return any_temp_srt
+
+    return None
 
 
 def _consume_confirmation(project: str, action: str, confirmation_token: str | None) -> str | None:
@@ -292,12 +330,10 @@ def generate_srt(
     ctx = get_context(root)
     cfg = load_config(project_dir=ctx.project_dir, verbose=False, require_videos=False)
 
-    lyric_srt = Path(cfg["srt_path"])
-    active_srt = _active_subtitle_path(ctx.project_dir)
-    has_existing_srt = lyric_srt.exists() or active_srt.exists()
+    existing_srt = _find_existing_subtitle_for_confirmation(cfg, ctx.project_dir)
+    has_existing_srt = existing_srt is not None
     if has_existing_srt and regenerate_srt is None:
-        subtitle_path = lyric_srt if lyric_srt.exists() else active_srt
-        return _issue_confirmation(ctx.current_project, "generate_srt", subtitle_path)
+        return _issue_confirmation(ctx.current_project, "generate_srt", existing_srt)
 
     if has_existing_srt:
         token_error = _consume_confirmation(ctx.current_project, "generate_srt", confirmation_token)
@@ -361,13 +397,11 @@ def generate_video(
             return "Error: split_mode must be one of: word, comma, sentence, none."
         effective_split_mode = candidate
 
-    lyric_srt = Path(cfg["srt_path"])
-    active_srt_path = _active_subtitle_path(ctx.project_dir)
-    has_existing_srt = lyric_srt.exists() or active_srt_path.exists()
+    existing_srt = _find_existing_subtitle_for_confirmation(cfg, ctx.project_dir)
+    has_existing_srt = existing_srt is not None
 
     if has_existing_srt and regenerate_srt is None:
-        subtitle_path = lyric_srt if lyric_srt.exists() else active_srt_path
-        return _issue_confirmation(ctx.current_project, "generate_video", subtitle_path)
+        return _issue_confirmation(ctx.current_project, "generate_video", existing_srt)
 
     if has_existing_srt:
         token_error = _consume_confirmation(ctx.current_project, "generate_video", confirmation_token)
