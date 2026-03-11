@@ -80,6 +80,7 @@ def burn_subtitles(
     font_color: str,
     outline_color: str,
     auto_fit_font_size: bool,
+    verbose: bool = True,
 ) -> None:
     """
     将字幕烧录到视频中。
@@ -96,14 +97,17 @@ def burn_subtitles(
         outline_color: 字幕描边颜色（ASS 格式）
         auto_fit_font_size: 是否自动缩小字号以尽量单行显示
     """
-    print("正在烧录字幕...")
+    if verbose:
+        print("正在烧录字幕...")
     actual_font_size = font_size
     if auto_fit_font_size:
         actual_font_size = _fit_font_size_for_single_line(srt_path, video_width, font_size)
         if actual_font_size < font_size:
-            print(f"检测到字幕较长，字号自动从 {font_size} 调整为 {actual_font_size} 以尽量单行显示")
+            if verbose:
+                print(f"检测到字幕较长，字号自动从 {font_size} 调整为 {actual_font_size} 以尽量单行显示")
     else:
-        print(f"已关闭字号自动适配，使用固定字号 {font_size}")
+        if verbose:
+            print(f"已关闭字号自动适配，使用固定字号 {font_size}")
 
     # FFmpeg subtitles 滤镜需要将路径中的反斜杠替换为正斜杠，冒号需要转义
     srt_escaped = srt_path.replace("\\", "/").replace(":", "\\:")
@@ -126,5 +130,8 @@ def burn_subtitles(
             output_path,
         ],
         check=True,
+        stdout=subprocess.DEVNULL if not verbose else None,
+        stderr=subprocess.DEVNULL if not verbose else None,
     )
-    print(f"Done! Final video: {output_path}")
+    if verbose:
+        print(f"Done! Final video: {output_path}")

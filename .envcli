@@ -1,0 +1,39 @@
+# ===== 音频与字幕 =====
+# 音频文件路径（用于节拍检测和最终合成），相对于项目根目录
+# SRT 字幕文件路径（可选，不填则自动根据音频文件名在 raw_materials/lyric/ 下查找）
+# SRT_PATH=raw_materials/lyric/Jag vet du ar inte min.srt
+
+# Whisper 模型大小（tiny/base/small/medium/large），仅在需要自动识别歌词时使用
+WHISPER_MODEL=small
+# 音频语言（如 Swedish、English、Chinese 等），必填
+LANGUAGE=Swedish
+
+# ===== 节拍与时长 =====
+# 音频总时长（秒，留空则自动从音频文件读取）
+# TOTAL_DURATION=
+BEATS_PER_CUT=2
+
+# ===== 视频素材 =====
+# 视频素材目录，程序会自动使用该目录下所有视频文件（按文件名排序）
+VIDEO_DIR=raw_materials/videos
+
+# ===== 视频输出参数 =====
+# 输出视频宽度（像素）
+VIDEO_WIDTH=1080
+# 输出视频高度（像素）
+VIDEO_HEIGHT=1920
+# 输出帧率
+FPS=30
+
+# ===== 字幕样式 =====
+# 字幕字体（新罗马）
+FONT_NAME=Times New Roman
+# 固定字幕字号（建议 10；想更小可改 9 或 8）
+FONT_SIZE=10
+# 是否自动缩小字号以尽量单行显示（true/false）
+AUTO_FIT_FONT_SIZE=false
+# 字幕主颜色（ASS 格式，&H00FFFFFF = 白色）
+FONT_COLOR=&H00FFFFFF
+# 字幕描边颜色（当前默认不启用描边，ASS 格式）
+OUTLINE_COLOR=&H00000000
+
