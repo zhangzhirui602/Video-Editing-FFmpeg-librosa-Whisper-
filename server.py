@@ -5,6 +5,8 @@ from __future__ import annotations
 import shutil
 import threading
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
@@ -305,6 +307,51 @@ def get_status() -> str:
         f"Active SRT      : {active_srt or '(none)'}\n"
         f"Final output    : {final_output}"
     )
+
+
+@mcp.tool()
+def download_video(url: str, filename: str | None = None) -> str:
+    """从 URL 下载视频文件到当前项目的 raw_materials/videos/ 目录。
+
+    Args:
+        url: 视频文件的下载链接（seedance API 返回的视频 URL）
+        filename: 保存的文件名（可选）。如不指定，自动生成带时间戳的文件名。
+    """
+    root = _root()
+    ctx = get_context(root)
+    videos_dir = Path(ctx.project_dir) / "raw_materials" / "videos"
+
+    try:
+        videos_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        return f"Error: cannot create directory {videos_dir}: {exc}"
+
+    if filename:
+        if not filename.lower().endswith(".mp4"):
+            filename += ".mp4"
+    else:
+        filename = f"clip_{int(time.time())}.mp4"
+
+    dest = videos_dir / filename
+
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            with open(dest, "wb") as f:
+                while True:
+                    chunk = resp.read(8192)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+    except urllib.error.URLError as exc:
+        return f"Error: cannot access URL: {exc}"
+    except OSError as exc:
+        if dest.exists():
+            dest.unlink()
+        return f"Error: failed to write file: {exc}"
+
+    size_mb = dest.stat().st_size / (1024 * 1024)
+    return f"Downloaded: {dest} ({size_mb:.1f} MB)"
 
 
 @mcp.tool()
