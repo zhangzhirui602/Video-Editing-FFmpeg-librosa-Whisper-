@@ -3,7 +3,12 @@
 import librosa
 
 
-def detect_beats(audio_path: str, total_duration: float, beats_per_cut: int) -> list[float]:
+def detect_beats(
+    audio_path: str,
+    total_duration: float,
+    beats_per_cut: int,
+    verbose: bool = True,
+) -> list[float]:
     """
     检测音频节拍并计算视频切换时间点。
 
@@ -15,7 +20,8 @@ def detect_beats(audio_path: str, total_duration: float, beats_per_cut: int) -> 
     返回:
         切换时间点列表（包含起点和终点）
     """
-    print("正在分析节拍...")
+    if verbose:
+        print("正在分析节拍...")
     y, sr = librosa.load(audio_path, sr=None, mono=True)
     tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
     beat_times = librosa.frames_to_time(beat_frames, sr=sr).tolist()
@@ -25,5 +31,6 @@ def detect_beats(audio_path: str, total_duration: float, beats_per_cut: int) -> 
     if cut_times[-1] < total_duration:
         cut_times.append(total_duration)
 
-    print(f"共 {len(cut_times)-1} 个切换点")
+    if verbose:
+        print(f"共 {len(cut_times)-1} 个切换点")
     return cut_times

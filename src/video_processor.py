@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+from typing import Callable
 
 
 def cut_segments(
@@ -11,6 +12,8 @@ def cut_segments(
     video_width: int,
     video_height: int,
     fps: int,
+    progress_callback: Callable[[int, int], None] | None = None,
+    verbose: bool = True,
 ) -> list[str]:
     """
     按切换时间点裁剪视频片段。
@@ -27,6 +30,8 @@ def cut_segments(
         裁剪后的视频片段路径列表
     """
     os.makedirs(temp_dir, exist_ok=True)
+    segs_dir = os.path.join(temp_dir, "segs")
+    os.makedirs(segs_dir, exist_ok=True)
     segment_files = []
 
     scale_filter = (
@@ -38,9 +43,10 @@ def cut_segments(
         start = cut_times[i]
         duration = cut_times[i + 1] - cut_times[i]
         clip_path = video_clips[i % len(video_clips)]
-        out_file = os.path.join(temp_dir, f"seg_{i:03d}.mp4")
+        out_file = os.path.join(segs_dir, f"seg_{i:03d}.mp4")
 
-        print(f"处理第 {i+1} 段（{duration:.3f}s）...")
+        if verbose:
+            print(f"处理第 {i+1} 段（{duration:.3f}s）...")
         subprocess.run(
             [
                 "ffmpeg", "-y", "-i", clip_path,
@@ -55,6 +61,8 @@ def cut_segments(
             stderr=subprocess.DEVNULL,
         )
         segment_files.append(out_file)
+        if progress_callback:
+            progress_callback(i + 1, len(cut_times) - 1)
 
     return segment_files
 
@@ -65,6 +73,7 @@ def concat_with_audio(
     total_duration: float,
     temp_dir: str,
     output_path: str,
+    verbose: bool = True,
 ) -> None:
     """
     拼接视频片段并合入音频。
@@ -76,7 +85,8 @@ def concat_with_audio(
         temp_dir: 临时文件目录
         output_path: 输出文件路径
     """
-    print("正在拼接视频...")
+    if verbose:
+        print("正在拼接视频...")
     concat_list = os.path.join(temp_dir, "concat_list.txt")
     with open(concat_list, "w", encoding="utf-8") as f:
         for seg in segment_files:
@@ -95,4 +105,5 @@ def concat_with_audio(
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
-    print("拼接完成！")
+    if verbose:
+        print("拼接完成！")
