@@ -19,9 +19,16 @@ STYLE_PRESETS: dict[str, str] = {
         "unsharp=3:3:0.3"
     ),
     "dreamy_soft": (
-        "gblur=sigma=1.5,"
-        "eq=brightness=0.08:saturation=1.1,"
-        "colorbalance=rs=0.15:gs=-0.05:bs=0.1:rm=0.1:gm=-0.05:bm=0.15"
+        "split[main][bloom];"
+        "[bloom]gblur=sigma=40,"
+        "curves=red='0/0.0\\:1/0.88':green='0/0.05\\:1/0.95':blue='0/0.0\\:1/0.68',"
+        "eq=brightness=0.12[bloom_out];"
+        "[main][bloom_out]blend=all_mode=screen:all_opacity=0.42,"
+        "curves=red='0/0.08\\:0.5/0.52\\:1/0.9'"
+        ":green='0/0.12\\:0.5/0.58\\:1/0.94'"
+        ":blue='0/0.04\\:0.5/0.38\\:1/0.75',"
+        "eq=brightness=0.04:contrast=0.76:saturation=0.75,"
+        "gblur=sigma=1.0"
     ),
     "cinematic": (
         "eq=contrast=1.3:saturation=0.9,"
