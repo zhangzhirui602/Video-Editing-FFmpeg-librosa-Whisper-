@@ -32,15 +32,21 @@ STYLE_PRESETS: dict[str, str] = {
         "unsharp=3:3:0.3"
     ),
     "dreamy_soft": (
+        # --- normalize: 把任意来源素材拍平到中性基准 ---
+        "normalize=blackpt=black:whitept=white:smoothing=0,"
+        "eq=contrast=0.9:saturation=0.85:gamma=1.0,"
+        "colorbalance=rs=0:gs=0:bs=0:rm=0:gm=0:bm=0,"
+        # --- dreamy grade: 暖调柔雾高光溢出 ---
         "split[main][bloom];"
         "[bloom]gblur=sigma=40,"
-        "curves=red='0/0.0\\:1/0.88':green='0/0.05\\:1/0.95':blue='0/0.0\\:1/0.68',"
+        "curves=red='0/0.05\\:1/0.95':green='0/0.03\\:1/0.82':blue='0/0.0\\:1/0.65',"
         "eq=brightness=0.12[bloom_out];"
         "[main][bloom_out]blend=all_mode=screen:all_opacity=0.42,"
-        "curves=red='0/0.08\\:0.5/0.52\\:1/0.9'"
-        ":green='0/0.12\\:0.5/0.58\\:1/0.94'"
-        ":blue='0/0.04\\:0.5/0.38\\:1/0.75',"
-        "eq=brightness=0.04:contrast=0.76:saturation=0.75,"
+        "curves=red='0/0.10\\:0.5/0.56\\:1/0.94'"
+        ":green='0/0.08\\:0.5/0.48\\:1/0.85'"
+        ":blue='0/0.04\\:0.5/0.36\\:1/0.70',"
+        "colorbalance=rs=0.08:gs=-0.02:bs=-0.08:rm=0.10:gm=0.02:bm=-0.06,"
+        "eq=brightness=0.04:contrast=0.76:saturation=0.72,"
         "gblur=sigma=1.0"
     ),
     "cinematic": (
