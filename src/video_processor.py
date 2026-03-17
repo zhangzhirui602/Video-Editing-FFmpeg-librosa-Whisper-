@@ -7,11 +7,24 @@ from typing import Callable
 
 STYLE_PRESETS: dict[str, str] = {
     "vintage_film": (
-        "curves=vintage,"
-        "colorbalance=rs=0.1:gs=0.05:bs=-0.1:rm=0.1:gm=0.05:bm=-0.05,"
-        "eq=saturation=0.8,"
-        "noise=c0s=8:allf=t,"
-        "vignette=PI/4"
+        # --- normalize: 把任意来源素材拍平到中性基准 ---
+        "normalize=blackpt=black:whitept=white:smoothing=0,"
+        "eq=contrast=0.9:saturation=0.85:gamma=1.0,"
+        "colorbalance=rs=0:gs=0:bs=0:rm=0:gm=0:bm=0,"
+        # --- vintage grade: 在中性基准上做胶片调色 ---
+        "curves="
+        "r='0/0.07\\:0.3/0.22\\:0.6/0.50\\:1/0.85'"
+        ":g='0/0.09\\:0.3/0.26\\:0.6/0.55\\:1/0.90'"
+        ":b='0/0.04\\:0.3/0.16\\:0.6/0.40\\:1/0.72',"
+        "colorbalance=rs=0.10:gs=0.15:bs=-0.10:rm=0.05:gm=0.08:bm=-0.08,"
+        "eq=contrast=0.82:saturation=0.65,"
+        # --- bloom: 模拟闪光灯高光溢出 ---
+        "split[main][bloom];"
+        "[bloom]gblur=sigma=30,eq=brightness=0.15[bloom_out];"
+        "[main][bloom_out]blend=all_mode=screen:all_opacity=0.25,"
+        "noise=c0s=18:allf=t,"
+        "gblur=sigma=1.2,"
+        "vignette=PI/3.5"
     ),
     "fresh_natural": (
         "eq=brightness=0.06:saturation=1.1,"
