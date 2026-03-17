@@ -27,6 +27,11 @@ STYLE_PRESETS: dict[str, str] = {
         "vignette=PI/3.5"
     ),
     "fresh_natural": (
+        # --- normalize: 把任意来源素材拍平到中性基准 ---
+        "normalize=blackpt=black:whitept=white:smoothing=0,"
+        "eq=contrast=0.9:saturation=0.85:gamma=1.0,"
+        "colorbalance=rs=0:gs=0:bs=0:rm=0:gm=0:bm=0,"
+        # --- fresh natural grade ---
         "eq=brightness=0.06:saturation=1.1,"
         "colorbalance=rs=-0.1:gs=0.05:bs=0.1:rm=-0.05:gm=0.1:bm=0.1,"
         "unsharp=3:3:0.3"
@@ -50,12 +55,22 @@ STYLE_PRESETS: dict[str, str] = {
         "gblur=sigma=1.0"
     ),
     "cinematic": (
+        # --- normalize: 把任意来源素材拍平到中性基准 ---
+        "normalize=blackpt=black:whitept=white:smoothing=0,"
+        "eq=contrast=0.9:saturation=0.85:gamma=1.0,"
+        "colorbalance=rs=0:gs=0:bs=0:rm=0:gm=0:bm=0,"
+        # --- cinematic grade ---
         "eq=contrast=1.3:saturation=0.9,"
         "colorbalance=rs=-0.05:gs=-0.02:bs=0.15:rm=-0.05:gm=-0.02:bm=0.1,"
         "drawbox=x=0:y=0:w=iw:h=ih*0.04:color=black:t=fill,"
         "drawbox=x=0:y=ih*0.96:w=iw:h=ih*0.04:color=black:t=fill"
     ),
     "bw_classic": (
+        # --- normalize: 把任意来源素材拍平到中性基准 ---
+        "normalize=blackpt=black:whitept=white:smoothing=0,"
+        "eq=contrast=0.9:saturation=0.85:gamma=1.0,"
+        "colorbalance=rs=0:gs=0:bs=0:rm=0:gm=0:bm=0,"
+        # --- bw classic grade ---
         "hue=s=0,"
         "eq=contrast=1.4,"
         "noise=c0s=6:allf=t"
