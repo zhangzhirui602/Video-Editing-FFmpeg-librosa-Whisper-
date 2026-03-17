@@ -5,6 +5,38 @@ import subprocess
 from typing import Callable
 
 
+STYLE_PRESETS: dict[str, str] = {
+    "vintage_film": (
+        "curves=vintage,"
+        "colorbalance=rs=0.1:gs=0.05:bs=-0.1:rm=0.1:gm=0.05:bm=-0.05,"
+        "eq=saturation=0.8,"
+        "noise=c0s=8:allf=t,"
+        "vignette=PI/4"
+    ),
+    "fresh_natural": (
+        "eq=brightness=0.06:saturation=1.1,"
+        "colorbalance=rs=-0.1:gs=0.05:bs=0.1:rm=-0.05:gm=0.1:bm=0.1,"
+        "unsharp=3:3:0.3"
+    ),
+    "dreamy_soft": (
+        "gblur=sigma=1.5,"
+        "eq=brightness=0.08:saturation=1.1,"
+        "colorbalance=rs=0.15:gs=-0.05:bs=0.1:rm=0.1:gm=-0.05:bm=0.15"
+    ),
+    "cinematic": (
+        "eq=contrast=1.3:saturation=0.9,"
+        "colorbalance=rs=-0.05:gs=-0.02:bs=0.15:rm=-0.05:gm=-0.02:bm=0.1,"
+        "drawbox=x=0:y=0:w=iw:h=ih*0.04:color=black:t=fill,"
+        "drawbox=x=0:y=ih*0.96:w=iw:h=ih*0.04:color=black:t=fill"
+    ),
+    "bw_classic": (
+        "hue=s=0,"
+        "eq=contrast=1.4,"
+        "noise=c0s=6:allf=t"
+    ),
+}
+
+
 def cut_segments(
     cut_times: list[float],
     video_clips: list[str],
