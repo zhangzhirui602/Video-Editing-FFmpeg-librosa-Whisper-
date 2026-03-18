@@ -5,6 +5,79 @@ import subprocess
 from typing import Callable
 
 
+STYLE_PRESETS: dict[str, str] = {
+    "vintage_film": (
+        # --- normalize: 把任意来源素材拍平到中性基准 ---
+        "normalize=blackpt=black:whitept=white:smoothing=0,"
+        "eq=contrast=0.9:saturation=0.85:gamma=1.0,"
+        "colorbalance=rs=0:gs=0:bs=0:rm=0:gm=0:bm=0,"
+        # --- vintage grade: 在中性基准上做胶片调色 ---
+        "curves="
+        "r='0/0.07\\:0.3/0.22\\:0.6/0.50\\:1/0.85'"
+        ":g='0/0.09\\:0.3/0.26\\:0.6/0.55\\:1/0.90'"
+        ":b='0/0.04\\:0.3/0.16\\:0.6/0.40\\:1/0.72',"
+        "colorbalance=rs=0.10:gs=0.15:bs=-0.10:rm=0.05:gm=0.08:bm=-0.08,"
+        "eq=contrast=0.82:saturation=0.65,"
+        # --- bloom: 模拟闪光灯高光溢出 ---
+        "split[main][bloom];"
+        "[bloom]gblur=sigma=30,eq=brightness=0.15[bloom_out];"
+        "[main][bloom_out]blend=all_mode=screen:all_opacity=0.25,"
+        "noise=c0s=18:allf=t,"
+        "gblur=sigma=1.2,"
+        "vignette=PI/3.5"
+    ),
+    "fresh_natural": (
+        # --- normalize: 把任意来源素材拍平到中性基准 ---
+        "normalize=blackpt=black:whitept=white:smoothing=0,"
+        "eq=contrast=0.9:saturation=0.85:gamma=1.0,"
+        "colorbalance=rs=0:gs=0:bs=0:rm=0:gm=0:bm=0,"
+        # --- fresh natural grade ---
+        "eq=brightness=0.06:saturation=1.1,"
+        "colorbalance=rs=-0.1:gs=0.05:bs=0.1:rm=-0.05:gm=0.1:bm=0.1,"
+        "unsharp=3:3:0.3"
+    ),
+    "dreamy_soft": (
+        # --- normalize: 把任意来源素材拍平到中性基准 ---
+        "normalize=blackpt=black:whitept=white:smoothing=0,"
+        "eq=contrast=0.9:saturation=0.85:gamma=1.0,"
+        "colorbalance=rs=0:gs=0:bs=0:rm=0:gm=0:bm=0,"
+        # --- dreamy grade: 暖调柔雾高光溢出 ---
+        "split[main][bloom];"
+        "[bloom]gblur=sigma=40,"
+        "curves=red='0/0.05\\:1/0.95':green='0/0.03\\:1/0.82':blue='0/0.0\\:1/0.65',"
+        "eq=brightness=0.12[bloom_out];"
+        "[main][bloom_out]blend=all_mode=screen:all_opacity=0.42,"
+        "curves=red='0/0.10\\:0.5/0.56\\:1/0.94'"
+        ":green='0/0.08\\:0.5/0.48\\:1/0.85'"
+        ":blue='0/0.04\\:0.5/0.36\\:1/0.70',"
+        "colorbalance=rs=0.08:gs=-0.02:bs=-0.08:rm=0.10:gm=0.02:bm=-0.06,"
+        "eq=brightness=0.04:contrast=0.76:saturation=0.72,"
+        "gblur=sigma=1.0"
+    ),
+    "cinematic": (
+        # --- normalize: 把任意来源素材拍平到中性基准 ---
+        "normalize=blackpt=black:whitept=white:smoothing=0,"
+        "eq=contrast=0.9:saturation=0.85:gamma=1.0,"
+        "colorbalance=rs=0:gs=0:bs=0:rm=0:gm=0:bm=0,"
+        # --- cinematic grade ---
+        "eq=contrast=1.3:saturation=0.9,"
+        "colorbalance=rs=-0.05:gs=-0.02:bs=0.15:rm=-0.05:gm=-0.02:bm=0.1,"
+        "drawbox=x=0:y=0:w=iw:h=ih*0.04:color=black:t=fill,"
+        "drawbox=x=0:y=ih*0.96:w=iw:h=ih*0.04:color=black:t=fill"
+    ),
+    "bw_classic": (
+        # --- normalize: 把任意来源素材拍平到中性基准 ---
+        "normalize=blackpt=black:whitept=white:smoothing=0,"
+        "eq=contrast=0.9:saturation=0.85:gamma=1.0,"
+        "colorbalance=rs=0:gs=0:bs=0:rm=0:gm=0:bm=0,"
+        # --- bw classic grade ---
+        "hue=s=0,"
+        "eq=contrast=1.4,"
+        "noise=c0s=6:allf=t"
+    ),
+}
+
+
 def cut_segments(
     cut_times: list[float],
     video_clips: list[str],

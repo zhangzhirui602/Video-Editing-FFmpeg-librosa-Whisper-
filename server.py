@@ -21,6 +21,7 @@ from cli.project_manager import (
 from src.config import load_config
 from src.pipeline import run as _run
 from src.transcriber import ensure_srt
+from src.video_processor import STYLE_PRESETS
 
 mcp = FastMCP("video-editor")
 
@@ -410,6 +411,7 @@ def generate_video(
     regenerate_srt: bool | None = None,
     confirmation_token: str | None = None,
     split_mode: str | None = None,
+    style: str | None = None,
 ) -> str:
     """基于当前项目的素材（音频 + 视频 + 字幕）在后台生成最终视频。
 
@@ -426,6 +428,8 @@ def generate_video(
         split_mode: 仅在 regenerate_srt=True 时生效，可选 word/comma/sentence/none。
             - 传值时：按该模式重建字幕
             - 不传时：使用 .env 配置中的 split_mode
+        style: FFmpeg 风格滤镜预设名，可选值：vintage_film, fresh_natural,
+            dreamy_soft, cinematic, bw_classic。不传时不应用风格滤镜。
     """
     with _job_lock:
         if _job_status["running"]:
@@ -433,6 +437,12 @@ def generate_video(
                 f"A video generation job is already running for project "
                 f"'{_job_status['project']}'. Use get_video_status to check progress."
             )
+
+    if style is not None:
+        style = style.strip().lower()
+        if style not in STYLE_PRESETS:
+            valid = ", ".join(STYLE_PRESETS)
+            return f"Error: style must be one of: {valid}."
 
     root = _root()
     ctx = get_context(root)
@@ -487,6 +497,7 @@ def generate_video(
                 project_dir=ctx.project_dir,
                 prepared_srt_path=active_srt,
                 quiet=True,
+                style=style,
             )
             with _job_lock:
                 _job_status.update({"running": False, "done": True, "result": cfg["final_output"]})

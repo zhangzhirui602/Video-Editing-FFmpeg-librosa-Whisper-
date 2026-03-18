@@ -2,6 +2,8 @@
 
 import subprocess
 
+from src.video_processor import STYLE_PRESETS
+
 
 def _iter_srt_text_lines(srt_path: str):
     """遍历 SRT 中每条字幕文本（合并为单行）。"""
@@ -80,6 +82,7 @@ def burn_subtitles(
     font_color: str,
     outline_color: str,
     auto_fit_font_size: bool,
+    style: str | None = None,
     verbose: bool = True,
 ) -> None:
     """
@@ -122,10 +125,15 @@ def burn_subtitles(
         f"Outline=0,Shadow=0,Alignment=10,WrapStyle=2'"
     )
 
+    if style and style in STYLE_PRESETS:
+        vf_arg = f"{STYLE_PRESETS[style]},{subtitle_filter},format=yuv420p"
+    else:
+        vf_arg = subtitle_filter
+
     subprocess.run(
         [
             "ffmpeg", "-y", "-i", input_path,
-            "-vf", subtitle_filter,
+            "-vf", vf_arg,
             "-c:a", "copy",
             output_path,
         ],

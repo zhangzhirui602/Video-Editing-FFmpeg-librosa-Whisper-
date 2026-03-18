@@ -24,6 +24,7 @@ def run(
     prepared_srt_path: str | None = None,
     progress_callback: PipelineProgressCallback | None = None,
     quiet: bool = False,
+    style: str | None = None,
 ) -> None:
     """执行完整的视频编辑流程。"""
     # 第一步：加载配置
@@ -102,6 +103,7 @@ def run(
         cfg["font_color"],
         cfg["outline_color"],
         cfg["auto_fit_font_size"],
+        style=style,
         verbose=not quiet,
     )
     _emit(progress_callback, "stage_done", stage="burn")
